@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>论坛--看贴</title>
+<Link rel="stylesheet" type="text/css" href="style/style.css" />
+</head>
+
+<body>
+<div id="yc_detail">
+	<div>
+		<img src="image/logo.gif">
+	</div>
+	<!--      用户信息、登录、注册        -->
+	
+	<div class="h" v-if="outlogin">
+		您尚未　<a href="login.html">登录</a>
+		&nbsp;| &nbsp; <a href="reg.html">注册</a> |
+	</div>
+	<div class="h" v-if="onlogin">
+		欢迎： {{uname}}
+	</div>
+
+	<!--      主体        -->
+	<div><br/>
+		<!--      导航        -->
+		<div>
+			&gt;&gt;<B><a href="index.html">论坛首页</a></B>&gt;&gt;
+			<B><a href="list.html">{{topic.boardname}}</a></B>
+		</div>
+		<br/>
+		<!--      回复、新帖        -->
+		<div>
+			<a :href="'post.html#rep&'+topic.topicid+'&'+topic.boardname"><IMG src="image/reply.gif" border="0" id=td_post></a> 
+			<a :href="'post.html#add&'+topic.boardid+'&'+topic.boardname"><IMG src="image/post.gif" border="0" id=td_post></a>
+		</div>
+		<!--         翻 页         -->
+		<div>
+			<a href="detail.html">上一页</a>|
+			<a href="detail.html">下一页</a>
+		</div>
+		<!--      本页主题的标题        -->
+		<div>
+			<table cellSpacing="0" cellPadding="0" width="100%">
+				<tr>
+					<th class="h">本页主题: {{topic.title}}</th>
+				</tr>
+				<tr class="tr2">
+					<td>&nbsp;</td>
+				</tr>
+			</table>
+		</div>
+		
+		<!--      主题        -->
+		
+		<div class="t">
+			<table style="BORDER-TOP-WIDTH: 0px; TABLE-LAYOUT: fixed" cellSpacing="0" cellPadding="0" width="100%">
+				<tr class="tr1">
+					<th style="width: 20%">
+						<B>{{topic.uname}}</B><br/>
+						<img :src="'image/head/'+topic.head"/><br/>
+						注册:{{topic.regtime}}<br/>
+					</th>
+					<th>
+						<H4>{{topic.title}}</H4>
+						<div v-html="topic.content">{{topic.content}}</div>
+						<div class="tipad gray">
+							发表：[{{topic.publishtime}}] &nbsp;
+							最后修改:[{{topic.modifytime}}]
+						</div>
+					</th>
+				</tr>
+			</table>
+		</div>
+		
+		<!--      回复        -->
+		
+		<div class="t" v-for="reply in replys">
+			<table style="BORDER-TOP-WIDTH: 0px; TABLE-LAYOUT: fixed" cellSpacing="0" cellPadding="0" width="100%">
+				<tr class="tr1">
+					<th style="WIDTH: 20%">
+						<B>{{reply.uname}}</B><br/><br/>
+						<img :src="'image/head/'+reply.head"/><br/>
+						注册:{{reply.regtime}}<br/>
+					</th>
+					<th>
+						<H4>{{reply.title}}</H4>
+						<div v-html="reply.content">{{reply.content}}</div>
+						<div class="tipad gray">
+							发表：[{{reply.publishtime}}] &nbsp;
+							最后修改:[{{reply.modifytime}}]
+							<a href="javascript:void(0)" @click="delReply(reply.replyid)">[删除]</a>
+							<a :href="'post.html#update&'+reply.replyid+'&'+topic.boardname">[修改]</a>
+							<a href="javascript:void(0)" @click="dianzan(reply.replyid)"><img src="image/zan.png">{{reply.zan}}</img></a>
+						</div>
+					</th>
+				</tr>
+			</table>
+		</div>
+		
+	</div>
+</div>
+<!--      声明        -->
+<br>
+<center class="gray">源辰信息</center>
+<script type="text/javascript" src="js/jquery-3.4.1.min.js"></script>
+<script type="text/javascript" src="js/vue.min.js"></script>
+<script type="text/javascript" src="js/axios.min.js"></script>
+<script type="text/javascript" src="js/qs.js"></script>
+<script type="text/javascript">
+var hash=window.location.hash;
+var topicid=hash.replace("#",'');
+var app=new Vue({
+	el:'#yc_detail',
+	data:{
+		topic:{},
+		replys:{},
+		uname:'匿名',
+		onlogin:false,
+		outlogin:true,
+		
+	},
+	methods:{
+		delReply:function(id){
+			axios.all([delReply(id),findByTopicId()]).then(axios.spread((fn1,fn2)=>{
+				if(fn1.data>0){
+					this.topic=fn2.data.topic;
+					this.replys=fn2.data.replys;
+					alert("删除成功");
+				}else{
+					alert("删除失败");
+				}
+			}));
+		},
+		dianzan:function(id){
+			axios.get("reply.action",{params:{op:'dianzan',replyid:id}}).then(result=>{
+				if(result.data=='error'){
+					alert('操作失败') ;
+				}else {
+					//暂定后期优化。..。.。
+				}
+			}) ;
+		}
+	},
+	mounted:function(){
+		//页面加载完成后
+		axios.all([checkLogin(),findByTopicId()]).then(axios.spread((fn1,fn2)=>{
+			if(0==fn1.data){
+				window.location.href="login.html";
+			}else{
+				this.uname=fn1.data.uname;
+				this.outlogin=false;
+				this.onlogin=true;
+				this.topic=fn2.data.topic;
+				this.replys=fn2.data.replys;
+				console.log(this.topic);
+			}
+		}));
+	}
+});
+function delReply(id){
+	return axios.get("reply.action?op=del&replyid="+id);
+}
+//检查用户是否登录
+function checkLogin(){
+	return axios.get("user.action?op=check");
+}
+
+//显示首页版本信息
+function findByTopicId(){
+	return axios.get("topic.action?op=findByid&topicid="+topicid);
+}
+</script>
+</body>
+</html>
+
